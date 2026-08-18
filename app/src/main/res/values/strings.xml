@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">FileRescue Libre</string>
+
+    <string name="root_check_checking">Vérification de l\'accès root…</string>
+
+    <string name="root_denied_title">Accès root requis</string>
+    <string name="root_denied_body">FileRescue Libre a besoin d\'un accès root pour lire directement le stockage de l\'appareil et retrouver les fichiers supprimés. Sans root, le système de stockage cloisonné d\'Android limite l\'accès aux fichiers, ce qui rend une récupération fiable impossible.</string>
+    <string name="root_denied_learn_more">En savoir plus</string>
+    <string name="root_denied_more_details">FileRescue Libre analyse l\'espace non alloué du stockage interne (technique de « file carving ») pour retrouver des fichiers effacés. Cette opération nécessite un accès direct au périphérique bloc du système, réservé aux appareils rootés (par exemple via Magisk). Aucune donnée ne quitte votre appareil : tout le traitement reste local.</string>
+
+    <string name="home_title">FileRescue Libre</string>
+    <string name="home_subtitle">Choisissez un type de scan</string>
+    <string name="scan_quick">Scan rapide</string>
+    <string name="scan_quick_desc">Recherche dans les index et corbeilles connues</string>
+    <string name="scan_deep">Scan approfondi</string>
+    <string name="scan_deep_desc">Analyse bas niveau de l\'espace non alloué</string>
+</resources>
