@@ -4,14 +4,19 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ouagadousoft.filerescuelibre.data.carving.DeepScanRepositoryImpl
+import com.ouagadousoft.filerescuelibre.data.history.AppDatabase
+import com.ouagadousoft.filerescuelibre.data.history.ScanHistoryRepositoryImpl
 import com.ouagadousoft.filerescuelibre.data.recovery.RecoveryRepositoryImpl
 import com.ouagadousoft.filerescuelibre.data.scan.QuickScanRepositoryImpl
 import com.ouagadousoft.filerescuelibre.domain.model.DeepScanEvent
 import com.ouagadousoft.filerescuelibre.domain.model.RecoverableFile
+import com.ouagadousoft.filerescuelibre.domain.model.ScanHistoryEntry
+import com.ouagadousoft.filerescuelibre.domain.model.ScanType
 import com.ouagadousoft.filerescuelibre.domain.model.ScanZone
 import com.ouagadousoft.filerescuelibre.domain.repository.DeepScanRepository
 import com.ouagadousoft.filerescuelibre.domain.repository.QuickScanRepository
 import com.ouagadousoft.filerescuelibre.domain.repository.RecoveryRepository
+import com.ouagadousoft.filerescuelibre.domain.repository.ScanHistoryRepository
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +48,8 @@ class ScanViewModel @JvmOverloads constructor(
     private val deepScanRepository: DeepScanRepository =
         DeepScanRepositoryImpl(File(application.filesDir, "carved")),
     private val recoveryRepository: RecoveryRepository = RecoveryRepositoryImpl(),
+    private val scanHistoryRepository: ScanHistoryRepository =
+        ScanHistoryRepositoryImpl(AppDatabase.getInstance(application).scanHistoryDao()),
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
@@ -64,6 +71,7 @@ class ScanViewModel @JvmOverloads constructor(
                     _uiState.value = ScanUiState.Scanning(results.size)
                 }
                 _uiState.value = ScanUiState.Completed(results.toList())
+                scanHistoryRepository.saveScan(ScanType.QUICK, zone, results)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -97,6 +105,7 @@ class ScanViewModel @JvmOverloads constructor(
                     }
                 }
                 _uiState.value = ScanUiState.Completed(results.toList())
+                scanHistoryRepository.saveScan(ScanType.DEEP, zone = null, results = results)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -108,6 +117,17 @@ class ScanViewModel @JvmOverloads constructor(
     fun reset() {
         _uiState.value = ScanUiState.Idle
         _recoveryStatuses.value = emptyMap()
+    }
+
+    /** Recharge les résultats d'un scan passé (historique) sans relancer de scan ni le ré-enregistrer. */
+    fun loadHistoryEntry(entry: ScanHistoryEntry) {
+        if (_uiState.value is ScanUiState.Scanning) return
+
+        viewModelScope.launch {
+            _recoveryStatuses.value = emptyMap()
+            val results = scanHistoryRepository.resultsForScan(entry.id)
+            _uiState.value = ScanUiState.Completed(results)
+        }
     }
 
     fun recoverFile(file: RecoverableFile) {

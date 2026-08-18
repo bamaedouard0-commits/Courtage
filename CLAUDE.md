@@ -37,7 +37,9 @@ rooted emulator image (Magisk).
 Key config: `applicationId`/`namespace` = `com.ouagadousoft.filerescuelibre`, `minSdk` = 26,
 `compileSdk`/`targetSdk` = 35, Kotlin/Java target 17. Version catalog is
 `gradle/libs.versions.toml` — add new dependencies there, not as inline coordinates in
-`app/build.gradle.kts`. `libsu` is resolved via JitPack (declared in `settings.gradle.kts`).
+`app/build.gradle.kts`. `libsu` is resolved via JitPack (declared in `settings.gradle.kts`). Room
+uses **kapt**, not KSP, for its annotation processor (`kotlin.kapt` plugin, pinned to the same
+`kotlin` version — chosen over KSP to avoid tracking a separate KSP-release version number).
 
 ## Architecture
 
@@ -62,7 +64,8 @@ also makes them swappable for tests via constructor injection. Follow this patte
 introducing a DI framework unless the project explicitly adopts one.
 
 Two independent scan features share one `ScanViewModel`/`ScanUiState` and are wired together in
-`ui/FileRescueNavHost.kt` (`home → scan_progress → scan_results`):
+`ui/FileRescueNavHost.kt` (`home → scan_progress → scan_results`, plus `home → history →
+scan_results`):
 
 - **Quick scan (F3)** — `data/scan/QuickScanRepositoryImpl`: no low-level reading. Shells out
   (via `RootShell`/`libsu`) to `find`/`stat` for files already flagged as deleted by the system:
@@ -114,6 +117,19 @@ Two independent scan features share one `ScanViewModel`/`ScanUiState` and are wi
   anything — the category row is hidden unless results span more than one category, and the
   reliability row is hidden unless at least one `PARTIAL` result exists — so a typical quick-scan
   result set (single category, all `INTACT`) shows no filter chips at all.
+- **Scan history** — `data/history/` (Room: `AppDatabase`, `ScanHistoryDao`,
+  `ScanSessionEntity` + `RecoveredFileEntity`, one-to-many via `sessionId` with cascade delete).
+  Every completed quick/deep scan is persisted automatically at the end of
+  `ScanViewModel.startQuickScan`/`startDeepScan` (`scanHistoryRepository.saveScan(...)`) — every
+  scan is saved unconditionally, there's no cap or pruning of old sessions in V1. `HomeScreen` has
+  a "Historique des scans" entry point (`ui/FileRescueNavHost.kt`'s `history` route) listing past
+  sessions via `ScanHistoryViewModel`; tapping one calls `ScanViewModel.loadHistoryEntry`, which
+  reloads that session's saved `RecoverableFile` rows straight into `ScanUiState.Completed` —
+  reusing `ScanResultsScreen` as-is, including recovery and thumbnails, instead of a separate
+  read-only view. Recovery/thumbnails on a historical entry re-read from `RecoverableFile.path` at
+  the time of loading, so a quick-scan trash hit whose file has since been purged by the OS will
+  simply fail to recover/decode (handled the same way as any other missing file) rather than
+  crash.
 
 `ReliabilityLevel` (`INTACT` vs `PARTIAL`) on `RecoverableFile` reflects whether a carved file's
 end was proven (footer found / natural box-walk end) or only bounded by a size cap / truncated
@@ -127,12 +143,14 @@ stay in sync.
 
 ## Not yet implemented (as of this doc)
 
-- No scan history (Room) — nothing persists across app restarts.
 - No video thumbnails (see above).
 - No persistent pause/resume for deep scan across sessions (F9).
+- No cap/pruning on scan history — every scan is kept forever; a heavy user could grow
+  `filerescue.db` unbounded.
 - `ScanResultsScreen.kt` / `ScanProgressScreen.kt` have hardcoded French UI strings, unlike
-  `HomeScreen.kt`/`NoRootScreen.kt` which use `stringResource` (`values/strings.xml` +
-  `values-en/strings.xml`) — inconsistent localization, worth fixing if touching those screens.
+  `HomeScreen.kt`/`NoRootScreen.kt`/`ScanHistoryScreen.kt` which use `stringResource`
+  (`values/strings.xml` + `values-en/strings.xml`) — inconsistent localization, worth fixing if
+  touching those two screens.
 
 ## Known V1 limitations (see README.md for current status)
 
@@ -140,8 +158,6 @@ stay in sync.
   C/C++ engine on large volumes. A native port is a documented follow-up, not a blocker.
   `native/` is reserved for this.
 - No persistent pause/resume across scan sessions yet.
-- No Room database yet (planned for scan history) despite being listed in the tech stack table in
-  `README.md`.
 
 Check `README.md`'s "Statut" section for the current up-to-date feature checklist before assuming
 something is or isn't implemented.

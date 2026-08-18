@@ -22,4 +22,9 @@
     <string name="zone_movies">Movies</string>
     <string name="zone_download">Téléchargements</string>
     <string name="zone_whatsapp">WhatsApp</string>
+
+    <string name="home_history_button">Historique des scans</string>
+    <string name="history_title">Historique des scans</string>
+    <string name="history_empty">Aucun scan effectué pour l\'instant.</string>
+    <string name="history_delete">Supprimer</string>
 </resources>

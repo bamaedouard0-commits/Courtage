@@ -7,14 +7,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.ouagadousoft.filerescuelibre.ui.screens.HomeScreen
+import com.ouagadousoft.filerescuelibre.ui.screens.ScanHistoryScreen
 import com.ouagadousoft.filerescuelibre.ui.screens.ScanProgressScreen
 import com.ouagadousoft.filerescuelibre.ui.screens.ScanResultsScreen
+import com.ouagadousoft.filerescuelibre.viewmodel.ScanHistoryViewModel
 import com.ouagadousoft.filerescuelibre.viewmodel.ScanViewModel
 
 private object Routes {
     const val HOME = "home"
     const val SCAN_PROGRESS = "scan_progress"
     const val SCAN_RESULTS = "scan_results"
+    const val HISTORY = "history"
 }
 
 @Composable
@@ -34,6 +37,9 @@ fun FileRescueNavHost(navController: NavHostController = rememberNavController()
                     scanViewModel.startDeepScan()
                     navController.navigate(Routes.SCAN_PROGRESS)
                 },
+                onOpenHistory = {
+                    navController.navigate(Routes.HISTORY)
+                },
             )
         }
         composable(Routes.SCAN_PROGRESS) {
@@ -52,6 +58,16 @@ fun FileRescueNavHost(navController: NavHostController = rememberNavController()
                 onNewScan = {
                     scanViewModel.reset()
                     navController.popBackStack(Routes.HOME, inclusive = false)
+                },
+            )
+        }
+        composable(Routes.HISTORY) {
+            val historyViewModel: ScanHistoryViewModel = viewModel()
+            ScanHistoryScreen(
+                viewModel = historyViewModel,
+                onEntryClick = { entry ->
+                    scanViewModel.loadHistoryEntry(entry)
+                    navController.navigate(Routes.SCAN_RESULTS)
                 },
             )
         }

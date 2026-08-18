@@ -14,6 +14,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +31,7 @@ import com.ouagadousoft.filerescuelibre.domain.model.ScanZone
 fun HomeScreen(
     onQuickScan: (ScanZone) -> Unit = {},
     onDeepScan: () -> Unit = {},
+    onOpenHistory: () -> Unit = {},
 ) {
     var selectedZone by remember { mutableStateOf(ScanZone.FULL_STORAGE) }
 
@@ -63,6 +65,10 @@ fun HomeScreen(
             description = stringResource(R.string.scan_deep_desc),
             onClick = onDeepScan,
         )
+        Spacer(modifier = Modifier.height(8.dp))
+        TextButton(onClick = onOpenHistory) {
+            Text(stringResource(R.string.home_history_button))
+        }
     }
 }
 
