@@ -14,4 +14,12 @@
     <string name="scan_quick_desc">Search known indexes and trash folders</string>
     <string name="scan_deep">Deep scan</string>
     <string name="scan_deep_desc">Low-level analysis of unallocated space</string>
+
+    <string name="zone_selector_label">Zone to scan</string>
+    <string name="zone_full_storage">Full internal storage</string>
+    <string name="zone_dcim">DCIM (camera)</string>
+    <string name="zone_pictures">Pictures</string>
+    <string name="zone_movies">Movies</string>
+    <string name="zone_download">Downloads</string>
+    <string name="zone_whatsapp">WhatsApp</string>
 </resources>

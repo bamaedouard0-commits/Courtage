@@ -14,4 +14,12 @@
     <string name="scan_quick_desc">Recherche dans les index et corbeilles connues</string>
     <string name="scan_deep">Scan approfondi</string>
     <string name="scan_deep_desc">Analyse bas niveau de l\'espace non alloué</string>
+
+    <string name="zone_selector_label">Zone à scanner</string>
+    <string name="zone_full_storage">Stockage interne complet</string>
+    <string name="zone_dcim">DCIM (appareil photo)</string>
+    <string name="zone_pictures">Pictures</string>
+    <string name="zone_movies">Movies</string>
+    <string name="zone_download">Téléchargements</string>
+    <string name="zone_whatsapp">WhatsApp</string>
 </resources>

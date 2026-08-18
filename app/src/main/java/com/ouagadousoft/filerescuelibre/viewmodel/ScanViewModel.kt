@@ -7,6 +7,7 @@ import com.ouagadousoft.filerescuelibre.data.carving.DeepScanRepositoryImpl
 import com.ouagadousoft.filerescuelibre.data.scan.QuickScanRepositoryImpl
 import com.ouagadousoft.filerescuelibre.domain.model.DeepScanEvent
 import com.ouagadousoft.filerescuelibre.domain.model.RecoverableFile
+import com.ouagadousoft.filerescuelibre.domain.model.ScanZone
 import com.ouagadousoft.filerescuelibre.domain.repository.DeepScanRepository
 import com.ouagadousoft.filerescuelibre.domain.repository.QuickScanRepository
 import java.io.File
@@ -38,14 +39,14 @@ class ScanViewModel @JvmOverloads constructor(
     private val _uiState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
 
-    fun startQuickScan() {
+    fun startQuickScan(zone: ScanZone) {
         if (_uiState.value is ScanUiState.Scanning) return
 
         viewModelScope.launch {
             _uiState.value = ScanUiState.Scanning(0)
             val results = mutableListOf<RecoverableFile>()
             try {
-                quickScanRepository.quickScan().collect { file ->
+                quickScanRepository.quickScan(zone).collect { file ->
                     results.add(file)
                     _uiState.value = ScanUiState.Scanning(results.size)
                 }

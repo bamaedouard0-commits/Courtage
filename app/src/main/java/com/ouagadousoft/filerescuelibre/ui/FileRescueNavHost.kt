@@ -26,8 +26,8 @@ fun FileRescueNavHost(navController: NavHostController = rememberNavController()
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
             HomeScreen(
-                onQuickScan = {
-                    scanViewModel.startQuickScan()
+                onQuickScan = { zone ->
+                    scanViewModel.startQuickScan(zone)
                     navController.navigate(Routes.SCAN_PROGRESS)
                 },
                 onDeepScan = {
