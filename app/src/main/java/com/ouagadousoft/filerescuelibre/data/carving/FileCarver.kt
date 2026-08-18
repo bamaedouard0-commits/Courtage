@@ -13,6 +13,15 @@ import com.ouagadousoft.filerescuelibre.domain.model.ReliabilityLevel
  * pas être déterminée de façon fiable avec une simple recherche de signature (trailer
  * GIF trop court pour être discriminant, EBML de Matroska nécessitant un vrai parseur).
  * Les inclure aurait produit des fichiers tronqués présentés comme récupérés.
+ *
+ * Même logique appliquée à l'extension musique/documents : WAV (conteneur RIFF, taille
+ * déclarée comme WEBP/AVI) et PDF (footer `%%EOF`, comme JPEG/PNG) sont carvables de façon
+ * fiable et donc inclus. **MP3, DOCX/XLSX/PPTX (ZIP + table centrale à parser) et DOC/XLS
+ * hérités (OLE2/CFB) sont volontairement exclus** : MP3 n'a pas de marqueur de fin fiable
+ * (il faudrait décoder les frames MPEG une à une) et les formats Office nécessiteraient un
+ * vrai parseur de conteneur, pas une simple recherche de signature. `SupportedFormats` les
+ * reconnaît quand même pour le scan rapide, qui n'a pas ce problème (le fichier existe déjà
+ * intact sur le disque, aucune longueur à déduire).
  */
 enum class CarveFormat(val category: FileCategory, val extension: String) {
     JPEG(FileCategory.IMAGE, "jpg"),
@@ -24,6 +33,8 @@ enum class CarveFormat(val category: FileCategory, val extension: String) {
     MOV(FileCategory.VIDEO, "mov"),
     THREE_GP(FileCategory.VIDEO, "3gp"),
     AVI(FileCategory.VIDEO, "avi"),
+    WAV(FileCategory.AUDIO, "wav"),
+    PDF(FileCategory.DOCUMENT, "pdf"),
 }
 
 data class CarveOutcome(
@@ -40,7 +51,9 @@ internal enum class Anchor(val pattern: ByteArray) {
     BMP_HEADER(byteArrayOf(0x42, 0x4D)),
     RIFF_WEBP("WEBP".toByteArray(Charsets.US_ASCII)),
     RIFF_AVI("AVI ".toByteArray(Charsets.US_ASCII)),
+    RIFF_WAV("WAVE".toByteArray(Charsets.US_ASCII)),
     ISOBMFF_FTYP("ftyp".toByteArray(Charsets.US_ASCII)),
+    PDF_HEADER("%PDF-".toByteArray(Charsets.US_ASCII)),
 }
 
 fun interface RandomAccessSource {
@@ -88,15 +101,16 @@ internal fun findEarliestSignature(buffer: ByteArray): SignatureMatch? {
 
 /** Décalage du début réel du fichier par rapport à la position de l'ancre trouvée. */
 internal fun Anchor.headerBackOffset(): Int = when (this) {
-    Anchor.RIFF_WEBP, Anchor.RIFF_AVI -> 8 // "RIFF" (4) + taille (4) précèdent le tag
+    Anchor.RIFF_WEBP, Anchor.RIFF_AVI, Anchor.RIFF_WAV -> 8 // "RIFF" (4) + taille (4) précèdent le tag
     Anchor.ISOBMFF_FTYP -> 4 // le champ de taille de la box précède "ftyp"
-    Anchor.JPEG_HEADER, Anchor.PNG_HEADER, Anchor.BMP_HEADER -> 0
+    Anchor.JPEG_HEADER, Anchor.PNG_HEADER, Anchor.BMP_HEADER, Anchor.PDF_HEADER -> 0
 }
 
 private const val MAX_SIMPLE_SIZE = 500L * 1024 * 1024
 private const val MAX_CONTAINER_SIZE = 2L * 1024 * 1024 * 1024
 private const val JPEG_SEARCH_WINDOW = 50L * 1024 * 1024
 private const val PNG_SEARCH_WINDOW = 150L * 1024 * 1024
+private const val PDF_SEARCH_WINDOW = 200L * 1024 * 1024
 
 private val RIFF_TAG = "RIFF".byteArrayLiteral()
 private val VALID_DIB_HEADER_SIZES = setOf(12L, 40L, 52L, 56L, 64L, 108L, 124L)
@@ -129,7 +143,18 @@ fun carve(source: RandomAccessSource, headerOffset: Long, anchor: Anchor, remain
         Anchor.BMP_HEADER -> carveBmp(source, headerOffset, remainingBytes)
         Anchor.RIFF_WEBP -> carveRiff(source, headerOffset, remainingBytes, CarveFormat.WEBP)
         Anchor.RIFF_AVI -> carveRiff(source, headerOffset, remainingBytes, CarveFormat.AVI)
+        Anchor.RIFF_WAV -> carveRiff(source, headerOffset, remainingBytes, CarveFormat.WAV)
         Anchor.ISOBMFF_FTYP -> carveIsoBmff(source, headerOffset, remainingBytes)
+        // S'arrête au premier "%%EOF" : un PDF avec des mises à jour incrémentales en
+        // contient plusieurs, mais chacun termine une révision valide et parseable — pas
+        // le même problème qu'un footer trop court/ambigu (GIF) ou absent (MP3).
+        Anchor.PDF_HEADER -> carveByFooter(
+            source, headerOffset,
+            footer = "%%EOF".byteArrayLiteral(),
+            footerTrailingBytes = 0,
+            searchWindow = minOf(PDF_SEARCH_WINDOW, remainingBytes),
+            format = CarveFormat.PDF,
+        )
     }
 }
 

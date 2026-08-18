@@ -47,11 +47,15 @@
     <string name="filter_option_count">%1$s (%2$d)</string>
     <string name="filter_photos">Photos</string>
     <string name="filter_videos">Videos</string>
+    <string name="filter_audio">Audio</string>
+    <string name="filter_documents">Documents</string>
     <string name="filter_intact">Intact</string>
     <string name="filter_partial">Partial</string>
 
     <string name="category_photo">Photo</string>
     <string name="category_video">Video</string>
+    <string name="category_audio">Audio</string>
+    <string name="category_document">Document</string>
     <string name="reliability_partial">Partial</string>
 
     <string name="recovery_saved">Saved: %1$s</string>

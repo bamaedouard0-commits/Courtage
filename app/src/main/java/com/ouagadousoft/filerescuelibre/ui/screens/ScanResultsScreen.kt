@@ -22,7 +22,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PlayArrow
@@ -96,6 +98,8 @@ fun ScanResultsScreen(
                 options = listOf(
                     FileCategory.IMAGE to stringResource(R.string.filter_photos),
                     FileCategory.VIDEO to stringResource(R.string.filter_videos),
+                    FileCategory.AUDIO to stringResource(R.string.filter_audio),
+                    FileCategory.DOCUMENT to stringResource(R.string.filter_documents),
                 ),
                 counts = countsByCategory,
                 selected = categoryFilter,
@@ -276,7 +280,12 @@ private fun Thumbnail(file: RecoverableFile) {
             }
         } else {
             Icon(
-                imageVector = if (file.category == FileCategory.VIDEO) Icons.Filled.Videocam else Icons.Filled.Photo,
+                imageVector = when (file.category) {
+                    FileCategory.IMAGE -> Icons.Filled.Photo
+                    FileCategory.VIDEO -> Icons.Filled.Videocam
+                    FileCategory.AUDIO -> Icons.Filled.AudioFile
+                    FileCategory.DOCUMENT -> Icons.Filled.Description
+                },
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -332,6 +341,8 @@ private fun RecoveryAction(status: RecoveryStatus?, onRecover: () -> Unit) {
 private fun FileCategory.label(): String = when (this) {
     FileCategory.IMAGE -> stringResource(R.string.category_photo)
     FileCategory.VIDEO -> stringResource(R.string.category_video)
+    FileCategory.AUDIO -> stringResource(R.string.category_audio)
+    FileCategory.DOCUMENT -> stringResource(R.string.category_document)
 }
 
 @Composable

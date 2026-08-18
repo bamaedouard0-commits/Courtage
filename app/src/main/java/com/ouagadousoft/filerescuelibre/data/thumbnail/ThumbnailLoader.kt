@@ -24,12 +24,17 @@ private const val MAX_DIMENSION_PX = 160
  */
 object ThumbnailLoader {
 
-    /** Retourne `null` si le décodage échoue (fichier carvé tronqué/corrompu, codec non supporté). */
+    /**
+     * Retourne `null` si le décodage échoue (fichier carvé tronqué/corrompu, codec non
+     * supporté), ou systématiquement pour l'audio/les documents — pas d'aperçu visuel
+     * pertinent à en tirer pour l'instant (icône générique côté UI).
+     */
     suspend fun load(file: RecoverableFile): Bitmap? = withContext(Dispatchers.IO) {
         try {
             when (file.category) {
                 FileCategory.IMAGE -> loadImageThumbnail(file.path)
                 FileCategory.VIDEO -> loadVideoThumbnail(file)
+                FileCategory.AUDIO, FileCategory.DOCUMENT -> null
             }
         } catch (e: CancellationException) {
             throw e

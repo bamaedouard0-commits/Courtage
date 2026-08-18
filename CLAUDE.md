@@ -91,10 +91,18 @@ scan_results`):
   and thorough truncation handling, not just a header signature.
   Carved files are streamed straight to the app's private storage (`filesDir/carved`) as they're
   found, never buffered fully in memory.
-  **GIF and MKV are intentionally excluded** from carving in V1: their end-of-file can't be
-  determined reliably by signature search alone (GIF trailer too short to be discriminant, MKV/
-  EBML needs a real parser). Do not add naive signature-only support for these without solving
-  that problem, or re-check `README.md` in case a real parser has since been added.
+  Beyond images/video, **WAV** (RIFF, reuses the same `carveRiff` as WEBP/AVI) and **PDF**
+  (footer search on `%%EOF`, reuses `carveByFooter` like JPEG/PNG) are carved too.
+  **GIF, MKV, MP3, and ZIP/OLE2-based Office formats (DOCX/XLSX/PPTX, legacy DOC/XLS) are
+  intentionally excluded** from carving in V1: none has an end-of-file that a plain signature
+  search can determine reliably (GIF trailer too short to be discriminant; MKV needs a real EBML
+  parser; MP3 has no end marker at all short of decoding MPEG frames one by one; the Office
+  formats need their own container parser — ZIP's central directory record or OLE2/CFB). Do not
+  add naive signature-only support for these without solving that problem, or re-check
+  `README.md` in case a real parser has since been added. Quick scan doesn't share this
+  constraint (the file already exists intact on disk) and does recognize MP3/Office extensions
+  via `SupportedFormats` — the two lists (what `SupportedFormats.categoryOf` recognizes vs. what
+  `FileCarver`/`CarveFormat` can actually carve) are deliberately not kept in sync.
 - Root access itself goes through `data/root/RootShell` (thin `libsu` `Shell.cmd(...).exec()`
   wrapper) and `viewmodel/RootViewModel`, which gates the whole UI: `MainActivity` shows
   `NoRootScreen` unless `RootViewModel.rootState` is `Granted`.
@@ -183,16 +191,17 @@ end was proven (footer found / natural box-walk end) or only bounded by a size c
 container walk — preserve this distinction in the UI and don't collapse it silently when adding
 new carve formats.
 
-`SupportedFormats.categoryOf` (domain layer) currently accepts a broader extension set (including
-gif/mkv) than the carving engine actually recovers — it's shared with quick scan, which doesn't
-carve and isn't limited by carving's footer/EBML problem. Don't assume the two lists are meant to
-stay in sync.
-
 ## Not yet implemented (as of this doc)
 
 - Pruned/deleted scan history rows don't clean up their carved files on disk
   (`filesDir/carved/*`) — only the Room rows are removed, so private storage can still grow
   unbounded even though the DB itself is now capped.
+- No thumbnails for `FileCategory.AUDIO`/`DOCUMENT` — `ThumbnailLoader.load` returns `null` for
+  both unconditionally; `ScanResultsScreen` falls back to a generic category icon. A PDF
+  first-page-as-image preview would need a rendering library (e.g. `PdfRenderer`), not attempted
+  here.
+- No DOCX/XLSX/PPTX or legacy DOC/XLS carving, and no MP3 carving (see the deep scan bullet
+  above for why) — deep scan stays limited to images/video/WAV/PDF.
 
 ## Known V1 limitations (see README.md for current status)
 
