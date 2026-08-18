@@ -110,9 +110,20 @@ gif/mkv) than the carving engine actually recovers — it's shared with quick sc
 carve and isn't limited by carving's footer/EBML problem. Don't assume the two lists are meant to
 stay in sync.
 
+- **Thumbnails** — `data/thumbnail/ThumbnailLoader`: decodes a small (`MAX_DIMENSION_PX` =
+  160px) `Bitmap` for `FileCategory.IMAGE` results, reading via `SuFileInputStream` (root) for
+  the same reason as recovery — trashed files aren't readable through normal file APIs.
+  Deliberately plain `BitmapFactory`, no Coil/Glide dependency yet. Returns `null` (UI falls
+  back to a generic icon) for videos — not implemented, would need `MediaMetadataRetriever`
+  with file-descriptor access, awkward to combine with root-only reads — and for any image that
+  fails to decode, including HEIC on API 26/27 devices (`minSdk` = 26; HEIF/HEIC decoding in
+  `BitmapFactory` only landed in API 28). `ScanResultsScreen`'s `Thumbnail` composable loads
+  per-row via `LaunchedEffect(file.path)`, with no cross-scroll cache — reloads on recomposition.
+
 ## Not yet implemented (as of this doc)
 
-- No filters, thumbnails, or scan history (Room) on `ScanResultsScreen` yet.
+- No filters or scan history (Room) on `ScanResultsScreen` yet.
+- No video thumbnails (see above).
 - No persistent pause/resume for deep scan across sessions (F9).
 - `ScanResultsScreen.kt` / `ScanProgressScreen.kt` have hardcoded French UI strings, unlike
   `HomeScreen.kt`/`NoRootScreen.kt` which use `stringResource` (`values/strings.xml` +

@@ -1,6 +1,10 @@
 package com.ouagadousoft.filerescuelibre.ui.screens
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,10 +17,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,12 +32,20 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.ouagadousoft.filerescuelibre.data.thumbnail.ThumbnailLoader
 import com.ouagadousoft.filerescuelibre.domain.model.FileCategory
 import com.ouagadousoft.filerescuelibre.domain.model.RecoverableFile
 import com.ouagadousoft.filerescuelibre.viewmodel.RecoveryStatus
@@ -108,6 +123,8 @@ private fun RecoverableFileRow(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Thumbnail(file = file)
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = file.name, style = MaterialTheme.typography.bodyLarge)
                 Spacer(modifier = Modifier.height(4.dp))
@@ -120,6 +137,39 @@ private fun RecoverableFileRow(
             }
             Spacer(modifier = Modifier.width(8.dp))
             RecoveryAction(status = status, onRecover = onRecover)
+        }
+    }
+}
+
+@Composable
+private fun Thumbnail(file: RecoverableFile) {
+    var bitmap by remember(file.path) { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(file.path) {
+        bitmap = ThumbnailLoader.load(file)
+    }
+
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        val currentBitmap = bitmap
+        if (currentBitmap != null) {
+            Image(
+                bitmap = currentBitmap.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Icon(
+                imageVector = if (file.category == FileCategory.VIDEO) Icons.Filled.Videocam else Icons.Filled.Photo,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
