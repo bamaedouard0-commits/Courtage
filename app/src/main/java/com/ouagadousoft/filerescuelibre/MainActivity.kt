@@ -20,7 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.ouagadousoft.filerescuelibre.ui.screens.HomeScreen
+import com.ouagadousoft.filerescuelibre.ui.FileRescueNavHost
 import com.ouagadousoft.filerescuelibre.ui.screens.NoRootScreen
 import com.ouagadousoft.filerescuelibre.ui.theme.FileRescueLibreTheme
 import com.ouagadousoft.filerescuelibre.viewmodel.RootState
@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
                     val rootState by rootViewModel.rootState.collectAsState()
                     when (rootState) {
                         RootState.Checking -> CheckingRootScreen()
-                        RootState.Granted -> HomeScreen()
+                        RootState.Granted -> FileRescueNavHost()
                         RootState.Denied -> NoRootScreen()
                     }
                 }
