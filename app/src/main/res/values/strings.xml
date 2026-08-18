@@ -35,6 +35,7 @@
     <string name="scan_progress_failed">Le scan a échoué : %1$s</string>
     <string name="scan_progress_found_count">%1$d fichier(s) trouvé(s)</string>
     <string name="scan_progress_percent">%1$d %%</string>
+    <string name="scan_progress_pause">Mettre en pause</string>
 
     <string name="results_count">%1$d fichier(s) récupérable(s)</string>
     <string name="results_count_filtered">%1$d / %2$d fichier(s) récupérable(s)</string>

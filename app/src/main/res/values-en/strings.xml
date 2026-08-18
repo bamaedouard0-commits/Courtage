@@ -35,6 +35,7 @@
     <string name="scan_progress_failed">Scan failed: %1$s</string>
     <string name="scan_progress_found_count">%1$d file(s) found</string>
     <string name="scan_progress_percent">%1$d%%</string>
+    <string name="scan_progress_pause">Pause</string>
 
     <string name="results_count">%1$d recoverable file(s)</string>
     <string name="results_count_filtered">%1$d / %2$d recoverable file(s)</string>

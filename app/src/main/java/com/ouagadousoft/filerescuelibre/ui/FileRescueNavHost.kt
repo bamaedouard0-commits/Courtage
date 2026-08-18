@@ -58,6 +58,10 @@ fun FileRescueNavHost(navController: NavHostController = rememberNavController()
                         popUpTo(Routes.HOME)
                     }
                 },
+                onPause = {
+                    scanViewModel.pauseDeepScan()
+                    navController.popBackStack(Routes.HOME, inclusive = false)
+                },
             )
         }
         composable(Routes.SCAN_RESULTS) {

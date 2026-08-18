@@ -143,17 +143,25 @@ scan_results`):
   the time of loading, so a quick-scan trash hit whose file has since been purged by the OS will
   simply fail to recover/decode (handled the same way as any other missing file) rather than
   crash.
-- **Deep scan pause/resume (F9)** — persisted across app kills, not a manual in-scan pause
-  button: the only way to interrupt a running deep scan today is to kill the app process, and
-  that's the case this feature makes recoverable. `data/history/DeepScanProgressEntity` is a
-  singleton row (`id = 0`) written at `ScanHistoryRepositoryImpl.beginDeepScanSession` (device
-  path + total size), updated via `recordDeepScanPosition` — throttled in `ScanViewModel` to
-  every `PROGRESS_PERSIST_INTERVAL_BYTES` (64 MiB) of progress, not every chunk, to avoid a DB
-  write storm — and cleared in `finishDeepScanSession` once the scan reaches the end. Every found
-  file is written immediately via `recordDeepScanFile` (not batched), so a killed scan doesn't
-  lose already-found results. On `ScanViewModel` init, `getResumableDeepScan()` populates
+- **Deep scan pause/resume (F9)** — persisted across app kills *and* a manual pause button.
+  `data/history/DeepScanProgressEntity` is a singleton row (`id = 0`) written at
+  `ScanHistoryRepositoryImpl.beginDeepScanSession` (device path + total size), updated via
+  `recordDeepScanPosition` — throttled in `ScanViewModel` to every `PROGRESS_PERSIST_INTERVAL_BYTES`
+  (64 MiB) of progress, not every chunk, to avoid a DB write storm — and cleared in
+  `finishDeepScanSession` once the scan reaches the end. Every found file is written immediately
+  via `recordDeepScanFile` (not batched), so pausing or killing the app never loses an
+  already-found result — only up to 64 MiB of unflushed position, which just gets re-scanned.
+  On `ScanViewModel` init, `getResumableDeepScan()` populates
   `resumableDeepScan: StateFlow<ResumableDeepScan?>`, surfaced as a "Reprendre le scan approfondi"
   card on `HomeScreen`.
+  `ScanViewModel.pauseDeepScan()` cancels the tracked `deepScanJob` (`Job.cancelAndJoin()`, run
+  from a *different* coroutine than the one being cancelled, since the cancelled coroutine's own
+  code past the cancellation point never resumes — `CancellationException` is deliberately
+  rethrown, not swallowed, matching the rest of this ViewModel's cancellation handling) and only
+  then flips `uiState` back to `Idle` and refreshes `resumableDeepScan`; `ScanProgressScreen`
+  shows the pause button whenever `progressFraction != null`, the same signal already used to
+  distinguish a deep scan in progress from a quick one (which never sets it) — no separate
+  "which scan is running" state needed.
   `DeepScanRepository.deepScan(startOffset, expectedDevicePath)` only honors `startOffset` if
   `BlockDeviceLocator` resolves the same `expectedDevicePath` as before — resuming at a byte
   offset on a *different* resolved device would read nonsense — signaled back via
@@ -175,8 +183,6 @@ stay in sync.
 
 ## Not yet implemented (as of this doc)
 
-- No manual "pause" button while a deep scan is actively running in the same app session — only
-  killing the app and resuming later (see F9 above) interrupts one.
 - No cap/pruning on scan history — every scan is kept forever; a heavy user could grow
   `filerescue.db` unbounded.
 

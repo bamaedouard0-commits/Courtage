@@ -20,6 +20,8 @@ import com.ouagadousoft.filerescuelibre.domain.repository.RecoveryRepository
 import com.ouagadousoft.filerescuelibre.domain.repository.ScanHistoryRepository
 import java.io.File
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -67,6 +69,8 @@ class ScanViewModel @JvmOverloads constructor(
     private val _resumableDeepScan = MutableStateFlow<ResumableDeepScan?>(null)
     val resumableDeepScan: StateFlow<ResumableDeepScan?> = _resumableDeepScan.asStateFlow()
 
+    private var deepScanJob: Job? = null
+
     init {
         viewModelScope.launch { refreshResumableDeepScan() }
     }
@@ -105,7 +109,7 @@ class ScanViewModel @JvmOverloads constructor(
     fun startDeepScan(resume: ResumableDeepScan? = null) {
         if (_uiState.value is ScanUiState.Scanning) return
 
-        viewModelScope.launch {
+        deepScanJob = viewModelScope.launch {
             _resumableDeepScan.value = null
 
             val initialFraction = resume?.let {
@@ -164,6 +168,21 @@ class ScanViewModel @JvmOverloads constructor(
             } catch (e: Exception) {
                 _uiState.value = ScanUiState.Error(e.message ?: "Erreur inconnue")
             }
+            refreshResumableDeepScan()
+        }
+    }
+
+    /**
+     * Interrompt volontairement le scan approfondi en cours, sans attendre un kill de l'app.
+     * La position et les fichiers déjà trouvés restent persistés (voir [startDeepScan]) : le
+     * scan redevient disponible via [resumableDeepScan] une fois l'annulation effective.
+     */
+    fun pauseDeepScan() {
+        val job = deepScanJob ?: return
+
+        viewModelScope.launch {
+            job.cancelAndJoin()
+            _uiState.value = ScanUiState.Idle
             refreshResumableDeepScan()
         }
     }

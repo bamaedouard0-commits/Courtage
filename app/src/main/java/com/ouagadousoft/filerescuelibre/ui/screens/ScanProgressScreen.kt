@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +28,7 @@ import com.ouagadousoft.filerescuelibre.viewmodel.ScanViewModel
 fun ScanProgressScreen(
     viewModel: ScanViewModel,
     onScanCompleted: () -> Unit,
+    onPause: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -73,6 +75,11 @@ fun ScanProgressScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    // Reprenable ensuite (F9) : uniquement le scan approfondi mesure une fraction.
+                    Spacer(modifier = Modifier.height(24.dp))
+                    OutlinedButton(onClick = onPause) {
+                        Text(stringResource(R.string.scan_progress_pause))
+                    }
                 }
             }
         }
