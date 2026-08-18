@@ -103,14 +103,23 @@ scan_results`):
   (`InProgress`/`Success`/`Error`) keyed by `RecoverableFile.path`, surfaced as a button/spinner/
   checkmark on each row in `ScanResultsScreen`.
 - **Thumbnails** — `data/thumbnail/ThumbnailLoader`: decodes a small (`MAX_DIMENSION_PX` =
-  160px) `Bitmap` for `FileCategory.IMAGE` results, reading via `SuFileInputStream` (root) for
-  the same reason as recovery — trashed files aren't readable through normal file APIs.
-  Deliberately plain `BitmapFactory`, no Coil/Glide dependency yet. Returns `null` (UI falls
-  back to a generic icon) for videos — not implemented, would need `MediaMetadataRetriever`
-  with file-descriptor access, awkward to combine with root-only reads — and for any image that
-  fails to decode, including HEIC on API 26/27 devices (`minSdk` = 26; HEIF/HEIC decoding in
-  `BitmapFactory` only landed in API 28). `ScanResultsScreen`'s `Thumbnail` composable loads
-  per-row via `LaunchedEffect(file.path)`, with no cross-scroll cache — reloads on recomposition.
+  160px) `Bitmap`, reading via `SuFileInputStream` (root) for the same reason as recovery —
+  trashed files aren't readable through normal file APIs. Deliberately plain
+  `BitmapFactory`/`MediaMetadataRetriever`, no Coil/Glide dependency yet.
+  Images: `BitmapFactory` with a bounds-only pre-pass to compute `inSampleSize`. Videos:
+  `MediaMetadataRetriever.getFrameAtTime()` via `SuFileMediaDataSource`, a private
+  `MediaDataSource` implementation that bridges the retriever's random-access reads onto the same
+  root `SuFileInputStream`/`FileChannel` pattern `DeepScanRepositoryImpl` uses for the raw
+  partition — `MediaMetadataRetriever.setDataSource(String path)` isn't usable for a trashed file
+  scoped storage won't let the app read directly. `SuFileMediaDataSource` reports the already-known
+  `RecoverableFile.sizeBytes` as its size rather than calling `channel.size()` (unreliable for
+  this root-backed stream). `ScanResultsScreen`'s `Thumbnail` composable draws a small
+  play-icon badge over a successfully-decoded video frame so it doesn't read as a photo; on
+  `null` (codec/format not supported, corrupt carve, or a category with no dedicated path) it
+  falls back to a generic category icon instead. Returns `null` for any image that fails to
+  decode too, including HEIC on API 26/27 devices (`minSdk` = 26; HEIF/HEIC decoding in
+  `BitmapFactory` only landed in API 28). Loads per-row via `LaunchedEffect(file.path)`, with no
+  cross-scroll cache — reloads on recomposition.
 - **Filters** — `ScanResultsScreen` derives `filteredResults` locally (plain `remember`, no
   ViewModel state) from two independent single-select filters: `FileCategory` and
   `ReliabilityLevel`. Each renders as a `FilterChipRow` only when it would actually narrow
@@ -162,7 +171,6 @@ stay in sync.
 
 ## Not yet implemented (as of this doc)
 
-- No video thumbnails (see above).
 - No manual "pause" button while a deep scan is actively running in the same app session — only
   killing the app and resuming later (see F9 above) interrupts one.
 - No cap/pruning on scan history — every scan is kept forever; a heavy user could grow
