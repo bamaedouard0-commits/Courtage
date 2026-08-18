@@ -11,6 +11,9 @@ enum class ScanSource {
 
     /** Corbeille FUSE par application (dossiers ".Trash-<uid>"). */
     APP_TRASH_BIN,
+
+    /** Fichier reconstruit par carving sur la partition data brute (scan approfondi). */
+    CARVED_BLOCK,
 }
 
 data class RecoverableFile(

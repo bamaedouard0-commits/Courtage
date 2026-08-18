@@ -7,7 +7,18 @@ Le projet est porté par **OUAGADOUSOFT**. Il vise à offrir une alternative 100
 ## Statut
 
 🚧 **En développement — V1 (MVP) en cours.**
-Le socle du projet (structure Android, détection root, UI de base) est en place. Le moteur de scan/carving n'est pas encore implémenté.
+
+- ✅ Structure Android, détection root, UI de base
+- ✅ Scan rapide (F3) : corbeille MediaStore (`.trashed-*`) et corbeilles FUSE par app (`.Trash-<uid>`)
+- ✅ Scan approfondi (F4) : file carving par signatures sur la partition data brute
+- ⏳ Zone de scan personnalisée, filtres, miniatures, export, historique — à venir
+
+### Limites connues du scan approfondi (V1)
+
+- **Formats couverts** : JPEG, PNG, BMP, WEBP, HEIC (images) et MP4, MOV, 3GP, AVI (vidéos). **GIF et MKV sont volontairement exclus** de cette V1 — leur fin de fichier ne peut pas être déterminée de façon fiable par simple recherche de signature (support prévu ultérieurement avec un vrai parseur EBML pour MKV).
+- **Implémentation Kotlin, pas encore native (NDK)** : le moteur lit et analyse la partition `userdata` en Kotlin pur via `libsu:io`. C'est plus lent qu'un module C/C++ natif (recommandé dans le cahier des charges pour la performance sur de gros volumes), mais permet une V1 fonctionnelle et vérifiable sans risquer une chaîne JNI/CMake non testée. Un portage natif est une optimisation de suivi documentée, pas un blocage fonctionnel.
+- **Localisation de la partition** : résolution via des chemins connus (`/dev/block/by-name/userdata`, etc.) puis recherche large en dernier recours. Selon le fabricant/ROM, ce chemin peut varier ou être bloqué par une politique SELinux stricte même sous root.
+- **Pas encore de pause/reprise persistante** entre sessions (F9, priorité "Moyenne", prévu séparément).
 
 ## Objectifs
 
@@ -26,8 +37,8 @@ La V1 cible exclusivement les appareils rootés (Magisk recommandé), afin d'acc
 |---|---|
 | Langage | Kotlin |
 | UI | Jetpack Compose |
-| Gestion root | [libsu](https://github.com/topjohnwu/libsu) (topjohnwu) |
-| Scan bas niveau | Module natif C/C++ (NDK) — à venir |
+| Gestion root | [libsu](https://github.com/topjohnwu/libsu) (topjohnwu) — modules `core` et `io` |
+| Scan bas niveau | Kotlin pur (V1) via `libsu:io` ; portage natif C/C++ (NDK) envisagé pour la performance |
 | Base de données locale | Room (SQLite) — à venir |
 | Miniatures | Coil / Glide — à venir |
 | Compatibilité | Android 8.0 (API 26) minimum |
@@ -42,11 +53,11 @@ UI (Compose) → ViewModel → Domain → Data/Native → Repository (Room)
 
 ```
 app/src/main/java/com/ouagadousoft/filerescuelibre/
-├── ui/          # Écrans Compose et thème
+├── ui/          # Écrans Compose, navigation et thème
 ├── viewmodel/   # État de l'app, orchestration des scans
-├── domain/      # Logique métier (règles de fiabilité, filtrage) — à venir
-├── data/        # Accès root, lecture bas niveau, repository Room — à venir
-└── native/      # Moteur de carving (module NDK) — à venir
+├── domain/      # Modèles, contrats de repository, règles métier
+├── data/        # Accès root (RootShell), scan rapide, carving, repository Room — à venir
+└── native/      # Réservé à un futur portage natif (NDK) du moteur de carving
 ```
 
 ## Licence

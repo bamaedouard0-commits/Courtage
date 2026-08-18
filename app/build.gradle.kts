@@ -57,6 +57,7 @@ dependencies {
 
     // Accès root
     implementation(libs.libsu.core)
+    implementation(libs.libsu.io)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

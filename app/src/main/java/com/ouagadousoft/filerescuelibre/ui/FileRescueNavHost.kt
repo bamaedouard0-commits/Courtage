@@ -31,7 +31,8 @@ fun FileRescueNavHost(navController: NavHostController = rememberNavController()
                     navController.navigate(Routes.SCAN_PROGRESS)
                 },
                 onDeepScan = {
-                    // Scan approfondi (F4, carving natif) : à venir.
+                    scanViewModel.startDeepScan()
+                    navController.navigate(Routes.SCAN_PROGRESS)
                 },
             )
         }

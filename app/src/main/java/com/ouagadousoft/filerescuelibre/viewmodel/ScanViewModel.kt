@@ -1,10 +1,15 @@
 package com.ouagadousoft.filerescuelibre.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ouagadousoft.filerescuelibre.data.carving.DeepScanRepositoryImpl
 import com.ouagadousoft.filerescuelibre.data.scan.QuickScanRepositoryImpl
+import com.ouagadousoft.filerescuelibre.domain.model.DeepScanEvent
 import com.ouagadousoft.filerescuelibre.domain.model.RecoverableFile
+import com.ouagadousoft.filerescuelibre.domain.repository.DeepScanRepository
 import com.ouagadousoft.filerescuelibre.domain.repository.QuickScanRepository
+import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,16 +18,22 @@ import kotlinx.coroutines.launch
 
 sealed interface ScanUiState {
     data object Idle : ScanUiState
-    data class Scanning(val foundCount: Int) : ScanUiState
+
+    /** [progressFraction] est `null` pour un scan sans mesure de progression fiable (scan rapide). */
+    data class Scanning(val foundCount: Int, val progressFraction: Float? = null) : ScanUiState
     data class Completed(val results: List<RecoverableFile>) : ScanUiState
     data class Error(val message: String) : ScanUiState
 }
 
 // Instanciation directe faute de framework d'injection de dépendances pour le moment ;
-// à remplacer si le projet adopte Hilt/Koin par la suite.
+// à remplacer si le projet adopte Hilt/Koin par la suite. AndroidViewModel est nécessaire
+// pour obtenir un répertoire de sortie privé (filesDir) pour les fichiers carvés.
 class ScanViewModel @JvmOverloads constructor(
+    application: Application,
     private val quickScanRepository: QuickScanRepository = QuickScanRepositoryImpl(),
-) : ViewModel() {
+    private val deepScanRepository: DeepScanRepository =
+        DeepScanRepositoryImpl(File(application.filesDir, "carved")),
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
@@ -37,6 +48,39 @@ class ScanViewModel @JvmOverloads constructor(
                 quickScanRepository.quickScan().collect { file ->
                     results.add(file)
                     _uiState.value = ScanUiState.Scanning(results.size)
+                }
+                _uiState.value = ScanUiState.Completed(results.toList())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.value = ScanUiState.Error(e.message ?: "Erreur inconnue")
+            }
+        }
+    }
+
+    fun startDeepScan() {
+        if (_uiState.value is ScanUiState.Scanning) return
+
+        viewModelScope.launch {
+            _uiState.value = ScanUiState.Scanning(0, progressFraction = 0f)
+            val results = mutableListOf<RecoverableFile>()
+            try {
+                deepScanRepository.deepScan().collect { event ->
+                    when (event) {
+                        is DeepScanEvent.Progress -> {
+                            val fraction = if (event.totalBytes > 0) {
+                                (event.bytesScanned.toFloat() / event.totalBytes.toFloat()).coerceIn(0f, 1f)
+                            } else {
+                                null
+                            }
+                            _uiState.value = ScanUiState.Scanning(results.size, fraction)
+                        }
+                        is DeepScanEvent.FileFound -> {
+                            results.add(event.file)
+                            val currentFraction = (_uiState.value as? ScanUiState.Scanning)?.progressFraction
+                            _uiState.value = ScanUiState.Scanning(results.size, currentFraction)
+                        }
+                    }
                 }
                 _uiState.value = ScanUiState.Completed(results.toList())
             } catch (e: CancellationException) {

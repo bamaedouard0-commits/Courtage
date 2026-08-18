@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,15 +50,28 @@ fun ScanProgressScreen(
                 )
             }
             else -> {
-                CircularProgressIndicator()
+                val scanning = state as? ScanUiState.Scanning
+                val fraction = scanning?.progressFraction
+                if (fraction != null) {
+                    LinearProgressIndicator(progress = { fraction })
+                } else {
+                    CircularProgressIndicator()
+                }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(text = "Recherche en cours…", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
-                val foundCount = (state as? ScanUiState.Scanning)?.foundCount ?: 0
                 Text(
-                    text = "$foundCount fichier(s) trouvé(s)",
+                    text = "${scanning?.foundCount ?: 0} fichier(s) trouvé(s)",
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                if (fraction != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${(fraction * 100).toInt()} %",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
