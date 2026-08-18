@@ -91,6 +91,14 @@ Two independent scan features share one `ScanViewModel`/`ScanUiState` and are wi
 - Root access itself goes through `data/root/RootShell` (thin `libsu` `Shell.cmd(...).exec()`
   wrapper) and `viewmodel/RootViewModel`, which gates the whole UI: `MainActivity` shows
   `NoRootScreen` unless `RootViewModel.rootState` is `Granted`.
+- **Recovery/export** — `data/recovery/RecoveryRepositoryImpl`: copies a found file (quick-scan
+  trash hit or deep-scan carved output) to `/storage/emulated/0/FileRescueLibre/Recupere`, a
+  normal folder outside the app, visible to any file manager/gallery — the original is never
+  moved or deleted. Runs via root shell (`cp`), same as the rest of the data layer, since carved
+  files live in the app's private storage and trashed files sit under scoped-storage paths the
+  app can't otherwise write from. `ScanViewModel.recoverFile` tracks per-file `RecoveryStatus`
+  (`InProgress`/`Success`/`Error`) keyed by `RecoverableFile.path`, surfaced as a button/spinner/
+  checkmark on each row in `ScanResultsScreen`.
 
 `ReliabilityLevel` (`INTACT` vs `PARTIAL`) on `RecoverableFile` reflects whether a carved file's
 end was proven (footer found / natural box-walk end) or only bounded by a size cap / truncated
@@ -101,6 +109,14 @@ new carve formats.
 gif/mkv) than the carving engine actually recovers — it's shared with quick scan, which doesn't
 carve and isn't limited by carving's footer/EBML problem. Don't assume the two lists are meant to
 stay in sync.
+
+## Not yet implemented (as of this doc)
+
+- No filters, thumbnails, or scan history (Room) on `ScanResultsScreen` yet.
+- No persistent pause/resume for deep scan across sessions (F9).
+- `ScanResultsScreen.kt` / `ScanProgressScreen.kt` have hardcoded French UI strings, unlike
+  `HomeScreen.kt`/`NoRootScreen.kt` which use `stringResource` (`values/strings.xml` +
+  `values-en/strings.xml`) — inconsistent localization, worth fixing if touching those screens.
 
 ## Known V1 limitations (see README.md for current status)
 

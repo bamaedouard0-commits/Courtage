@@ -4,12 +4,14 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ouagadousoft.filerescuelibre.data.carving.DeepScanRepositoryImpl
+import com.ouagadousoft.filerescuelibre.data.recovery.RecoveryRepositoryImpl
 import com.ouagadousoft.filerescuelibre.data.scan.QuickScanRepositoryImpl
 import com.ouagadousoft.filerescuelibre.domain.model.DeepScanEvent
 import com.ouagadousoft.filerescuelibre.domain.model.RecoverableFile
 import com.ouagadousoft.filerescuelibre.domain.model.ScanZone
 import com.ouagadousoft.filerescuelibre.domain.repository.DeepScanRepository
 import com.ouagadousoft.filerescuelibre.domain.repository.QuickScanRepository
+import com.ouagadousoft.filerescuelibre.domain.repository.RecoveryRepository
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +28,12 @@ sealed interface ScanUiState {
     data class Error(val message: String) : ScanUiState
 }
 
+sealed interface RecoveryStatus {
+    data object InProgress : RecoveryStatus
+    data class Success(val savedPath: String) : RecoveryStatus
+    data class Error(val message: String) : RecoveryStatus
+}
+
 // Instanciation directe faute de framework d'injection de dépendances pour le moment ;
 // à remplacer si le projet adopte Hilt/Koin par la suite. AndroidViewModel est nécessaire
 // pour obtenir un répertoire de sortie privé (filesDir) pour les fichiers carvés.
@@ -34,10 +42,15 @@ class ScanViewModel @JvmOverloads constructor(
     private val quickScanRepository: QuickScanRepository = QuickScanRepositoryImpl(),
     private val deepScanRepository: DeepScanRepository =
         DeepScanRepositoryImpl(File(application.filesDir, "carved")),
+    private val recoveryRepository: RecoveryRepository = RecoveryRepositoryImpl(),
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
+
+    /** État de récupération par [RecoverableFile.path], affiché sur chaque ligne de résultat. */
+    private val _recoveryStatuses = MutableStateFlow<Map<String, RecoveryStatus>>(emptyMap())
+    val recoveryStatuses: StateFlow<Map<String, RecoveryStatus>> = _recoveryStatuses.asStateFlow()
 
     fun startQuickScan(zone: ScanZone) {
         if (_uiState.value is ScanUiState.Scanning) return
@@ -94,5 +107,23 @@ class ScanViewModel @JvmOverloads constructor(
 
     fun reset() {
         _uiState.value = ScanUiState.Idle
+        _recoveryStatuses.value = emptyMap()
+    }
+
+    fun recoverFile(file: RecoverableFile) {
+        if (_recoveryStatuses.value[file.path] is RecoveryStatus.InProgress) return
+
+        viewModelScope.launch {
+            _recoveryStatuses.value += file.path to RecoveryStatus.InProgress
+            val status = try {
+                val savedPath = recoveryRepository.recover(file)
+                RecoveryStatus.Success(savedPath)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                RecoveryStatus.Error(e.message ?: "Erreur inconnue")
+            }
+            _recoveryStatuses.value += file.path to status
+        }
     }
 }
