@@ -99,6 +99,21 @@ Two independent scan features share one `ScanViewModel`/`ScanUiState` and are wi
   app can't otherwise write from. `ScanViewModel.recoverFile` tracks per-file `RecoveryStatus`
   (`InProgress`/`Success`/`Error`) keyed by `RecoverableFile.path`, surfaced as a button/spinner/
   checkmark on each row in `ScanResultsScreen`.
+- **Thumbnails** — `data/thumbnail/ThumbnailLoader`: decodes a small (`MAX_DIMENSION_PX` =
+  160px) `Bitmap` for `FileCategory.IMAGE` results, reading via `SuFileInputStream` (root) for
+  the same reason as recovery — trashed files aren't readable through normal file APIs.
+  Deliberately plain `BitmapFactory`, no Coil/Glide dependency yet. Returns `null` (UI falls
+  back to a generic icon) for videos — not implemented, would need `MediaMetadataRetriever`
+  with file-descriptor access, awkward to combine with root-only reads — and for any image that
+  fails to decode, including HEIC on API 26/27 devices (`minSdk` = 26; HEIF/HEIC decoding in
+  `BitmapFactory` only landed in API 28). `ScanResultsScreen`'s `Thumbnail` composable loads
+  per-row via `LaunchedEffect(file.path)`, with no cross-scroll cache — reloads on recomposition.
+- **Filters** — `ScanResultsScreen` derives `filteredResults` locally (plain `remember`, no
+  ViewModel state) from two independent single-select filters: `FileCategory` and
+  `ReliabilityLevel`. Each renders as a `FilterChipRow` only when it would actually narrow
+  anything — the category row is hidden unless results span more than one category, and the
+  reliability row is hidden unless at least one `PARTIAL` result exists — so a typical quick-scan
+  result set (single category, all `INTACT`) shows no filter chips at all.
 
 `ReliabilityLevel` (`INTACT` vs `PARTIAL`) on `RecoverableFile` reflects whether a carved file's
 end was proven (footer found / natural box-walk end) or only bounded by a size cap / truncated
@@ -110,19 +125,9 @@ gif/mkv) than the carving engine actually recovers — it's shared with quick sc
 carve and isn't limited by carving's footer/EBML problem. Don't assume the two lists are meant to
 stay in sync.
 
-- **Thumbnails** — `data/thumbnail/ThumbnailLoader`: decodes a small (`MAX_DIMENSION_PX` =
-  160px) `Bitmap` for `FileCategory.IMAGE` results, reading via `SuFileInputStream` (root) for
-  the same reason as recovery — trashed files aren't readable through normal file APIs.
-  Deliberately plain `BitmapFactory`, no Coil/Glide dependency yet. Returns `null` (UI falls
-  back to a generic icon) for videos — not implemented, would need `MediaMetadataRetriever`
-  with file-descriptor access, awkward to combine with root-only reads — and for any image that
-  fails to decode, including HEIC on API 26/27 devices (`minSdk` = 26; HEIF/HEIC decoding in
-  `BitmapFactory` only landed in API 28). `ScanResultsScreen`'s `Thumbnail` composable loads
-  per-row via `LaunchedEffect(file.path)`, with no cross-scroll cache — reloads on recomposition.
-
 ## Not yet implemented (as of this doc)
 
-- No filters or scan history (Room) on `ScanResultsScreen` yet.
+- No scan history (Room) — nothing persists across app restarts.
 - No video thumbnails (see above).
 - No persistent pause/resume for deep scan across sessions (F9).
 - `ScanResultsScreen.kt` / `ScanProgressScreen.kt` have hardcoded French UI strings, unlike
@@ -137,7 +142,6 @@ stay in sync.
 - No persistent pause/resume across scan sessions yet.
 - No Room database yet (planned for scan history) despite being listed in the tech stack table in
   `README.md`.
-- No thumbnails yet (Coil/Glide planned).
 
 Check `README.md`'s "Statut" section for the current up-to-date feature checklist before assuming
 something is or isn't implemented.

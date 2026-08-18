@@ -3,6 +3,7 @@ package com.ouagadousoft.filerescuelibre.ui.screens
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -27,6 +29,7 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import com.ouagadousoft.filerescuelibre.data.thumbnail.ThumbnailLoader
 import com.ouagadousoft.filerescuelibre.domain.model.FileCategory
 import com.ouagadousoft.filerescuelibre.domain.model.RecoverableFile
+import com.ouagadousoft.filerescuelibre.domain.model.ReliabilityLevel
 import com.ouagadousoft.filerescuelibre.viewmodel.RecoveryStatus
 import com.ouagadousoft.filerescuelibre.viewmodel.ScanUiState
 import com.ouagadousoft.filerescuelibre.viewmodel.ScanViewModel
@@ -61,14 +65,53 @@ fun ScanResultsScreen(
     val recoveryStatuses by viewModel.recoveryStatuses.collectAsState()
     val results = (uiState as? ScanUiState.Completed)?.results.orEmpty()
 
+    var categoryFilter by remember { mutableStateOf<FileCategory?>(null) }
+    var reliabilityFilter by remember { mutableStateOf<ReliabilityLevel?>(null) }
+
+    val countsByCategory = remember(results) { results.groupingBy { it.category }.eachCount() }
+    val countsByReliability = remember(results) { results.groupingBy { it.reliability }.eachCount() }
+
+    val filteredResults = remember(results, categoryFilter, reliabilityFilter) {
+        results.filter { file ->
+            (categoryFilter == null || file.category == categoryFilter) &&
+                (reliabilityFilter == null || file.reliability == reliabilityFilter)
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "${results.size} fichier(s) récupérable(s)",
+            text = resultsHeaderText(filteredResults.size, results.size),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(16.dp),
         )
 
-        if (results.isEmpty()) {
+        if (countsByCategory.size > 1) {
+            FilterChipRow(
+                totalCount = results.size,
+                options = listOf(FileCategory.IMAGE to "Photos", FileCategory.VIDEO to "Vidéos"),
+                counts = countsByCategory,
+                selected = categoryFilter,
+                onSelectedChange = { categoryFilter = it },
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        if ((countsByReliability[ReliabilityLevel.PARTIAL] ?: 0) > 0) {
+            FilterChipRow(
+                totalCount = results.size,
+                options = listOf(
+                    ReliabilityLevel.INTACT to "Intactes",
+                    ReliabilityLevel.PARTIAL to "Partielles",
+                ),
+                counts = countsByReliability,
+                selected = reliabilityFilter,
+                onSelectedChange = { reliabilityFilter = it },
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        if (filteredResults.isEmpty()) {
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -78,7 +121,11 @@ fun ScanResultsScreen(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    text = "Aucun fichier trouvé lors du scan rapide. Essayez le scan approfondi.",
+                    text = if (results.isEmpty()) {
+                        "Aucun fichier trouvé lors du scan rapide. Essayez le scan approfondi."
+                    } else {
+                        "Aucun résultat pour ces filtres."
+                    },
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -88,7 +135,7 @@ fun ScanResultsScreen(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(horizontal = 16.dp),
             ) {
-                items(results, key = { it.path }) { file ->
+                items(filteredResults, key = { it.path }) { file ->
                     RecoverableFileRow(
                         file = file,
                         status = recoveryStatuses[file.path],
@@ -106,6 +153,45 @@ fun ScanResultsScreen(
                 .padding(16.dp),
         ) {
             Text("Nouveau scan")
+        }
+    }
+}
+
+private fun resultsHeaderText(filteredCount: Int, totalCount: Int): String =
+    if (filteredCount == totalCount) {
+        "$totalCount fichier(s) récupérable(s)"
+    } else {
+        "$filteredCount / $totalCount fichier(s) récupérable(s)"
+    }
+
+/** Ligne de puces à sélection unique ("Toutes" + une option par entrée de [options] présente dans [counts]). */
+@Composable
+private fun <T> FilterChipRow(
+    totalCount: Int,
+    options: List<Pair<T, String>>,
+    counts: Map<T, Int>,
+    selected: T?,
+    onSelectedChange: (T?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilterChip(
+            selected = selected == null,
+            onClick = { onSelectedChange(null) },
+            label = { Text("Toutes ($totalCount)") },
+        )
+        options.forEach { (value, label) ->
+            val count = counts[value] ?: 0
+            if (count > 0) {
+                FilterChip(
+                    selected = selected == value,
+                    onClick = { onSelectedChange(if (selected == value) null else value) },
+                    label = { Text("$label ($count)") },
+                )
+            }
         }
     }
 }
@@ -129,7 +215,12 @@ private fun RecoverableFileRow(
                 Text(text = file.name, style = MaterialTheme.typography.bodyLarge)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${file.category.label()} · ${formatSize(file.sizeBytes)}",
+                    text = buildString {
+                        append(file.category.label())
+                        append(" · ")
+                        append(formatSize(file.sizeBytes))
+                        if (file.reliability == ReliabilityLevel.PARTIAL) append(" · Partiel")
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
