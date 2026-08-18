@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [ScanSessionEntity::class, RecoveredFileEntity::class],
+    entities = [ScanSessionEntity::class, RecoveredFileEntity::class, DeepScanProgressEntity::class],
     version = 1,
     exportSchema = false,
 )

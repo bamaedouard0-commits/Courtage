@@ -27,4 +27,7 @@
     <string name="history_title">Historique des scans</string>
     <string name="history_empty">Aucun scan effectué pour l\'instant.</string>
     <string name="history_delete">Supprimer</string>
+
+    <string name="resume_deep_scan_title">Reprendre le scan approfondi</string>
+    <string name="resume_deep_scan_desc">Interrompu à %1$d %% — %2$d fichier(s) déjà trouvé(s)</string>
 </resources>

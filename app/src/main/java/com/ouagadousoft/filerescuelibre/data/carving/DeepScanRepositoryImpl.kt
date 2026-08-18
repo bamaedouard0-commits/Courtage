@@ -33,7 +33,7 @@ class DeepScanRepositoryImpl(
     private val outputDir: File,
 ) : DeepScanRepository {
 
-    override fun deepScan(): Flow<DeepScanEvent> = flow {
+    override fun deepScan(startOffset: Long, expectedDevicePath: String?): Flow<DeepScanEvent> = flow {
         val devicePath = BlockDeviceLocator.resolveUserdataDevice()
             ?: throw DeepScanException(
                 "Impossible de localiser la partition data brute sur cet appareil."
@@ -43,13 +43,18 @@ class DeepScanRepositoryImpl(
                 "Impossible de déterminer la taille de la partition ($devicePath)."
             )
 
+        // Reprendre à startOffset n'a de sens que sur le même périphérique : un offset ne
+        // correspond à rien de fiable si la résolution de partition a changé entretemps.
+        val resumedFromOffset = expectedDevicePath != null && expectedDevicePath == devicePath
+        emit(DeepScanEvent.Started(devicePath, totalBytes, resumedFromOffset))
+
         outputDir.mkdirs()
 
         SuFileInputStream.open(devicePath).use { input ->
             val channel = input.channel
             val source = channelRandomAccessSource(channel)
 
-            var position = 0L
+            var position = (if (resumedFromOffset) startOffset else 0L).coerceIn(0L, totalBytes)
             while (position < totalBytes) {
                 val positionAtLoopStart = position
                 val toRead = minOf(CHUNK_SIZE.toLong(), totalBytes - position).toInt()

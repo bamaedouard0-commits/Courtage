@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ouagadousoft.filerescuelibre.R
+import com.ouagadousoft.filerescuelibre.domain.model.ResumableDeepScan
 import com.ouagadousoft.filerescuelibre.domain.model.ScanZone
 
 @Composable
@@ -32,6 +33,8 @@ fun HomeScreen(
     onQuickScan: (ScanZone) -> Unit = {},
     onDeepScan: () -> Unit = {},
     onOpenHistory: () -> Unit = {},
+    resumableDeepScan: ResumableDeepScan? = null,
+    onResumeDeepScan: () -> Unit = {},
 ) {
     var selectedZone by remember { mutableStateOf(ScanZone.FULL_STORAGE) }
 
@@ -46,6 +49,11 @@ fun HomeScreen(
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = stringResource(R.string.home_subtitle), style = MaterialTheme.typography.bodyMedium)
         Spacer(modifier = Modifier.height(24.dp))
+
+        if (resumableDeepScan != null) {
+            ResumeDeepScanCard(resume = resumableDeepScan, onClick = onResumeDeepScan)
+            Spacer(modifier = Modifier.height(24.dp))
+        }
 
         ZoneSelector(
             selected = selectedZone,
@@ -119,6 +127,28 @@ private fun ScanZone.displayLabel(): String = when (this) {
     ScanZone.MOVIES -> stringResource(R.string.zone_movies)
     ScanZone.DOWNLOAD -> stringResource(R.string.zone_download)
     ScanZone.WHATSAPP -> stringResource(R.string.zone_whatsapp)
+}
+
+@Composable
+private fun ResumeDeepScanCard(resume: ResumableDeepScan, onClick: () -> Unit) {
+    val percent = if (resume.totalBytes > 0) {
+        (resume.position * 100 / resume.totalBytes).toInt()
+    } else {
+        0
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(text = stringResource(R.string.resume_deep_scan_title), style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.resume_deep_scan_desc, percent, resume.existingResults.size),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
 }
 
 @Composable

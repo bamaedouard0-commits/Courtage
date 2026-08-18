@@ -10,6 +10,7 @@ import com.ouagadousoft.filerescuelibre.data.recovery.RecoveryRepositoryImpl
 import com.ouagadousoft.filerescuelibre.data.scan.QuickScanRepositoryImpl
 import com.ouagadousoft.filerescuelibre.domain.model.DeepScanEvent
 import com.ouagadousoft.filerescuelibre.domain.model.RecoverableFile
+import com.ouagadousoft.filerescuelibre.domain.model.ResumableDeepScan
 import com.ouagadousoft.filerescuelibre.domain.model.ScanHistoryEntry
 import com.ouagadousoft.filerescuelibre.domain.model.ScanType
 import com.ouagadousoft.filerescuelibre.domain.model.ScanZone
@@ -23,6 +24,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+/** Fréquence d'écriture de la position de reprise en base : à chaque octet serait bien trop coûteux. */
+private const val PROGRESS_PERSIST_INTERVAL_BYTES = 64L * 1024 * 1024
 
 sealed interface ScanUiState {
     data object Idle : ScanUiState
@@ -59,6 +63,18 @@ class ScanViewModel @JvmOverloads constructor(
     private val _recoveryStatuses = MutableStateFlow<Map<String, RecoveryStatus>>(emptyMap())
     val recoveryStatuses: StateFlow<Map<String, RecoveryStatus>> = _recoveryStatuses.asStateFlow()
 
+    /** Scan approfondi interrompu (app tuée) détecté au démarrage, proposé à la reprise sur HomeScreen. */
+    private val _resumableDeepScan = MutableStateFlow<ResumableDeepScan?>(null)
+    val resumableDeepScan: StateFlow<ResumableDeepScan?> = _resumableDeepScan.asStateFlow()
+
+    init {
+        viewModelScope.launch { refreshResumableDeepScan() }
+    }
+
+    private suspend fun refreshResumableDeepScan() {
+        _resumableDeepScan.value = scanHistoryRepository.getResumableDeepScan()
+    }
+
     fun startQuickScan(zone: ScanZone) {
         if (_uiState.value is ScanUiState.Scanning) return
 
@@ -80,15 +96,45 @@ class ScanViewModel @JvmOverloads constructor(
         }
     }
 
-    fun startDeepScan() {
+    /**
+     * [resume] reprend un scan approfondi interrompu (voir [resumableDeepScan]) là où il s'était
+     * arrêté, fichiers déjà trouvés compris. Si le périphérique résolu a changé entretemps
+     * (voir [DeepScanEvent.Started]), le scan repart de zéro plutôt que d'utiliser un offset
+     * devenu invalide — dans ce cas les anciens résultats de [resume] ne sont pas repris.
+     */
+    fun startDeepScan(resume: ResumableDeepScan? = null) {
         if (_uiState.value is ScanUiState.Scanning) return
 
         viewModelScope.launch {
-            _uiState.value = ScanUiState.Scanning(0, progressFraction = 0f)
-            val results = mutableListOf<RecoverableFile>()
+            _resumableDeepScan.value = null
+
+            val initialFraction = resume?.let {
+                if (it.totalBytes > 0) (it.position.toFloat() / it.totalBytes.toFloat()).coerceIn(0f, 1f) else 0f
+            } ?: 0f
+            _uiState.value = ScanUiState.Scanning(resume?.existingResults?.size ?: 0, initialFraction)
+
+            val results = resume?.existingResults.orEmpty().toMutableList()
+            var sessionId: Long? = null
+            var lastPersistedPosition = resume?.position ?: 0L
             try {
-                deepScanRepository.deepScan().collect { event ->
+                deepScanRepository.deepScan(
+                    startOffset = resume?.position ?: 0,
+                    expectedDevicePath = resume?.devicePath,
+                ).collect { event ->
                     when (event) {
+                        is DeepScanEvent.Started -> {
+                            sessionId = if (resume != null && event.resumedFromOffset) {
+                                resume.sessionId
+                            } else {
+                                if (resume != null) {
+                                    // Offset invalidé (partition différente) : on repart de zéro.
+                                    results.clear()
+                                    lastPersistedPosition = 0
+                                    _uiState.value = ScanUiState.Scanning(0, 0f)
+                                }
+                                scanHistoryRepository.beginDeepScanSession(event.devicePath, event.totalBytes)
+                            }
+                        }
                         is DeepScanEvent.Progress -> {
                             val fraction = if (event.totalBytes > 0) {
                                 (event.bytesScanned.toFloat() / event.totalBytes.toFloat()).coerceIn(0f, 1f)
@@ -96,21 +142,29 @@ class ScanViewModel @JvmOverloads constructor(
                                 null
                             }
                             _uiState.value = ScanUiState.Scanning(results.size, fraction)
+
+                            val sid = sessionId
+                            if (sid != null && event.bytesScanned - lastPersistedPosition >= PROGRESS_PERSIST_INTERVAL_BYTES) {
+                                lastPersistedPosition = event.bytesScanned
+                                scanHistoryRepository.recordDeepScanPosition(sid, event.bytesScanned)
+                            }
                         }
                         is DeepScanEvent.FileFound -> {
                             results.add(event.file)
+                            sessionId?.let { scanHistoryRepository.recordDeepScanFile(it, event.file) }
                             val currentFraction = (_uiState.value as? ScanUiState.Scanning)?.progressFraction
                             _uiState.value = ScanUiState.Scanning(results.size, currentFraction)
                         }
                     }
                 }
                 _uiState.value = ScanUiState.Completed(results.toList())
-                scanHistoryRepository.saveScan(ScanType.DEEP, zone = null, results = results)
+                sessionId?.let { scanHistoryRepository.finishDeepScanSession(it) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _uiState.value = ScanUiState.Error(e.message ?: "Erreur inconnue")
             }
+            refreshResumableDeepScan()
         }
     }
 

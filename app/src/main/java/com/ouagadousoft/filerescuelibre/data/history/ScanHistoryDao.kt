@@ -2,6 +2,7 @@ package com.ouagadousoft.filerescuelibre.data.history
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
@@ -14,6 +15,12 @@ interface ScanHistoryDao {
     @Insert
     suspend fun insertFiles(files: List<RecoveredFileEntity>)
 
+    @Insert
+    suspend fun insertFile(file: RecoveredFileEntity)
+
+    @Query("UPDATE scan_sessions SET resultCount = resultCount + 1 WHERE id = :sessionId")
+    suspend fun incrementResultCount(sessionId: Long)
+
     @Query("SELECT * FROM scan_sessions ORDER BY timestampEpochSeconds DESC")
     fun observeSessions(): Flow<List<ScanSessionEntity>>
 
@@ -22,4 +29,16 @@ interface ScanHistoryDao {
 
     @Query("DELETE FROM scan_sessions WHERE id = :sessionId")
     suspend fun deleteSession(sessionId: Long)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertDeepScanProgress(progress: DeepScanProgressEntity)
+
+    @Query("SELECT * FROM deep_scan_progress WHERE id = 0")
+    suspend fun getDeepScanProgress(): DeepScanProgressEntity?
+
+    @Query("UPDATE deep_scan_progress SET position = :position WHERE id = 0")
+    suspend fun updateDeepScanProgressPosition(position: Long)
+
+    @Query("DELETE FROM deep_scan_progress")
+    suspend fun clearDeepScanProgress()
 }

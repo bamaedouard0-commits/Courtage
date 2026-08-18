@@ -130,6 +130,25 @@ scan_results`):
   the time of loading, so a quick-scan trash hit whose file has since been purged by the OS will
   simply fail to recover/decode (handled the same way as any other missing file) rather than
   crash.
+- **Deep scan pause/resume (F9)** — persisted across app kills, not a manual in-scan pause
+  button: the only way to interrupt a running deep scan today is to kill the app process, and
+  that's the case this feature makes recoverable. `data/history/DeepScanProgressEntity` is a
+  singleton row (`id = 0`) written at `ScanHistoryRepositoryImpl.beginDeepScanSession` (device
+  path + total size), updated via `recordDeepScanPosition` — throttled in `ScanViewModel` to
+  every `PROGRESS_PERSIST_INTERVAL_BYTES` (64 MiB) of progress, not every chunk, to avoid a DB
+  write storm — and cleared in `finishDeepScanSession` once the scan reaches the end. Every found
+  file is written immediately via `recordDeepScanFile` (not batched), so a killed scan doesn't
+  lose already-found results. On `ScanViewModel` init, `getResumableDeepScan()` populates
+  `resumableDeepScan: StateFlow<ResumableDeepScan?>`, surfaced as a "Reprendre le scan approfondi"
+  card on `HomeScreen`.
+  `DeepScanRepository.deepScan(startOffset, expectedDevicePath)` only honors `startOffset` if
+  `BlockDeviceLocator` resolves the same `expectedDevicePath` as before — resuming at a byte
+  offset on a *different* resolved device would read nonsense — signaled back via
+  `DeepScanEvent.Started.resumedFromOffset`; `ScanViewModel.startDeepScan` checks that flag
+  before deciding whether to reuse the old `sessionId`/pre-seeded results or start a fresh
+  session at 0. Treat this device-identity check as load-bearing if you touch `startOffset`
+  handling — silently trusting a stale offset on a mismatched device is a correctness bug, not
+  just a UX one.
 
 `ReliabilityLevel` (`INTACT` vs `PARTIAL`) on `RecoverableFile` reflects whether a carved file's
 end was proven (footer found / natural box-walk end) or only bounded by a size cap / truncated
@@ -144,7 +163,8 @@ stay in sync.
 ## Not yet implemented (as of this doc)
 
 - No video thumbnails (see above).
-- No persistent pause/resume for deep scan across sessions (F9).
+- No manual "pause" button while a deep scan is actively running in the same app session — only
+  killing the app and resuming later (see F9 above) interrupts one.
 - No cap/pruning on scan history — every scan is kept forever; a heavy user could grow
   `filerescue.db` unbounded.
 - `ScanResultsScreen.kt` / `ScanProgressScreen.kt` have hardcoded French UI strings, unlike
@@ -157,7 +177,6 @@ stay in sync.
 - Carving is pure Kotlin via `libsu:io`, not a native NDK module — functional but slower than a
   C/C++ engine on large volumes. A native port is a documented follow-up, not a blocker.
   `native/` is reserved for this.
-- No persistent pause/resume across scan sessions yet.
 
 Check `README.md`'s "Statut" section for the current up-to-date feature checklist before assuming
 something is or isn't implemented.

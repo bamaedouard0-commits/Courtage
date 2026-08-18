@@ -1,6 +1,8 @@
 package com.ouagadousoft.filerescuelibre.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -28,6 +30,7 @@ fun FileRescueNavHost(navController: NavHostController = rememberNavController()
 
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
+            val resumableDeepScan by scanViewModel.resumableDeepScan.collectAsState()
             HomeScreen(
                 onQuickScan = { zone ->
                     scanViewModel.startQuickScan(zone)
@@ -39,6 +42,11 @@ fun FileRescueNavHost(navController: NavHostController = rememberNavController()
                 },
                 onOpenHistory = {
                     navController.navigate(Routes.HISTORY)
+                },
+                resumableDeepScan = resumableDeepScan,
+                onResumeDeepScan = {
+                    scanViewModel.startDeepScan(resume = resumableDeepScan)
+                    navController.navigate(Routes.SCAN_PROGRESS)
                 },
             )
         }

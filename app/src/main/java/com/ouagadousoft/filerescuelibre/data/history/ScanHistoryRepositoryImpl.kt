@@ -3,6 +3,7 @@ package com.ouagadousoft.filerescuelibre.data.history
 import com.ouagadousoft.filerescuelibre.domain.model.FileCategory
 import com.ouagadousoft.filerescuelibre.domain.model.RecoverableFile
 import com.ouagadousoft.filerescuelibre.domain.model.ReliabilityLevel
+import com.ouagadousoft.filerescuelibre.domain.model.ResumableDeepScan
 import com.ouagadousoft.filerescuelibre.domain.model.ScanHistoryEntry
 import com.ouagadousoft.filerescuelibre.domain.model.ScanSource
 import com.ouagadousoft.filerescuelibre.domain.model.ScanType
@@ -35,6 +36,50 @@ class ScanHistoryRepositoryImpl(private val dao: ScanHistoryDao) : ScanHistoryRe
 
     override suspend fun deleteScan(scanId: Long) {
         dao.deleteSession(scanId)
+    }
+
+    override suspend fun getResumableDeepScan(): ResumableDeepScan? {
+        val progress = dao.getDeepScanProgress() ?: return null
+        return ResumableDeepScan(
+            sessionId = progress.sessionId,
+            devicePath = progress.devicePath,
+            position = progress.position,
+            totalBytes = progress.totalBytes,
+            existingResults = dao.getFilesForSession(progress.sessionId).map { it.toDomain() },
+        )
+    }
+
+    override suspend fun beginDeepScanSession(devicePath: String, totalBytes: Long): Long {
+        val sessionId = dao.insertSession(
+            ScanSessionEntity(
+                type = ScanType.DEEP.name,
+                zoneName = null,
+                timestampEpochSeconds = System.currentTimeMillis() / 1000,
+                resultCount = 0,
+            )
+        )
+        dao.upsertDeepScanProgress(
+            DeepScanProgressEntity(
+                sessionId = sessionId,
+                devicePath = devicePath,
+                position = 0,
+                totalBytes = totalBytes,
+            )
+        )
+        return sessionId
+    }
+
+    override suspend fun recordDeepScanFile(sessionId: Long, file: RecoverableFile) {
+        dao.insertFile(file.toEntity(sessionId))
+        dao.incrementResultCount(sessionId)
+    }
+
+    override suspend fun recordDeepScanPosition(sessionId: Long, position: Long) {
+        dao.updateDeepScanProgressPosition(position)
+    }
+
+    override suspend fun finishDeepScanSession(sessionId: Long) {
+        dao.clearDeepScanProgress()
     }
 }
 

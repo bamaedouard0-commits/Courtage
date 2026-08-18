@@ -27,4 +27,7 @@
     <string name="history_title">Scan history</string>
     <string name="history_empty">No scans yet.</string>
     <string name="history_delete">Delete</string>
+
+    <string name="resume_deep_scan_title">Resume deep scan</string>
+    <string name="resume_deep_scan_desc">Interrupted at %1$d%% — %2$d file(s) already found</string>
 </resources>
