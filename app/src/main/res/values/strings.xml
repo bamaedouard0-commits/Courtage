@@ -30,4 +30,36 @@
 
     <string name="resume_deep_scan_title">Reprendre le scan approfondi</string>
     <string name="resume_deep_scan_desc">Interrompu à %1$d %% — %2$d fichier(s) déjà trouvé(s)</string>
+
+    <string name="scan_progress_title">Recherche en cours…</string>
+    <string name="scan_progress_failed">Le scan a échoué : %1$s</string>
+    <string name="scan_progress_found_count">%1$d fichier(s) trouvé(s)</string>
+    <string name="scan_progress_percent">%1$d %%</string>
+
+    <string name="results_count">%1$d fichier(s) récupérable(s)</string>
+    <string name="results_count_filtered">%1$d / %2$d fichier(s) récupérable(s)</string>
+    <string name="results_empty_quick">Aucun fichier trouvé lors du scan rapide. Essayez le scan approfondi.</string>
+    <string name="results_empty_filtered">Aucun résultat pour ces filtres.</string>
+    <string name="results_new_scan">Nouveau scan</string>
+
+    <string name="filter_all_count">Toutes (%1$d)</string>
+    <string name="filter_option_count">%1$s (%2$d)</string>
+    <string name="filter_photos">Photos</string>
+    <string name="filter_videos">Vidéos</string>
+    <string name="filter_intact">Intactes</string>
+    <string name="filter_partial">Partielles</string>
+
+    <string name="category_photo">Photo</string>
+    <string name="category_video">Vidéo</string>
+    <string name="reliability_partial">Partiel</string>
+
+    <string name="recovery_saved">Enregistré : %1$s</string>
+    <string name="recovery_failed">Échec : %1$s</string>
+    <string name="recovery_recovered_description">Récupéré</string>
+    <string name="recovery_retry_description">Réessayer</string>
+    <string name="recovery_recover_description">Récupérer</string>
+
+    <string name="size_megabytes">%1$.1f Mo</string>
+    <string name="size_kilobytes">%1$.0f Ko</string>
+    <string name="size_bytes">%1$d o</string>
 </resources>

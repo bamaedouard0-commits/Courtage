@@ -49,8 +49,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.ouagadousoft.filerescuelibre.R
 import com.ouagadousoft.filerescuelibre.data.thumbnail.ThumbnailLoader
 import com.ouagadousoft.filerescuelibre.domain.model.FileCategory
 import com.ouagadousoft.filerescuelibre.domain.model.RecoverableFile
@@ -91,7 +93,10 @@ fun ScanResultsScreen(
         if (countsByCategory.size > 1) {
             FilterChipRow(
                 totalCount = results.size,
-                options = listOf(FileCategory.IMAGE to "Photos", FileCategory.VIDEO to "Vidéos"),
+                options = listOf(
+                    FileCategory.IMAGE to stringResource(R.string.filter_photos),
+                    FileCategory.VIDEO to stringResource(R.string.filter_videos),
+                ),
                 counts = countsByCategory,
                 selected = categoryFilter,
                 onSelectedChange = { categoryFilter = it },
@@ -103,8 +108,8 @@ fun ScanResultsScreen(
             FilterChipRow(
                 totalCount = results.size,
                 options = listOf(
-                    ReliabilityLevel.INTACT to "Intactes",
-                    ReliabilityLevel.PARTIAL to "Partielles",
+                    ReliabilityLevel.INTACT to stringResource(R.string.filter_intact),
+                    ReliabilityLevel.PARTIAL to stringResource(R.string.filter_partial),
                 ),
                 counts = countsByReliability,
                 selected = reliabilityFilter,
@@ -125,9 +130,9 @@ fun ScanResultsScreen(
             ) {
                 Text(
                     text = if (results.isEmpty()) {
-                        "Aucun fichier trouvé lors du scan rapide. Essayez le scan approfondi."
+                        stringResource(R.string.results_empty_quick)
                     } else {
-                        "Aucun résultat pour ces filtres."
+                        stringResource(R.string.results_empty_filtered)
                     },
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium,
@@ -155,16 +160,17 @@ fun ScanResultsScreen(
                 .fillMaxWidth()
                 .padding(16.dp),
         ) {
-            Text("Nouveau scan")
+            Text(stringResource(R.string.results_new_scan))
         }
     }
 }
 
+@Composable
 private fun resultsHeaderText(filteredCount: Int, totalCount: Int): String =
     if (filteredCount == totalCount) {
-        "$totalCount fichier(s) récupérable(s)"
+        stringResource(R.string.results_count, totalCount)
     } else {
-        "$filteredCount / $totalCount fichier(s) récupérable(s)"
+        stringResource(R.string.results_count_filtered, filteredCount, totalCount)
     }
 
 /** Ligne de puces à sélection unique ("Toutes" + une option par entrée de [options] présente dans [counts]). */
@@ -184,7 +190,7 @@ private fun <T> FilterChipRow(
         FilterChip(
             selected = selected == null,
             onClick = { onSelectedChange(null) },
-            label = { Text("Toutes ($totalCount)") },
+            label = { Text(stringResource(R.string.filter_all_count, totalCount)) },
         )
         options.forEach { (value, label) ->
             val count = counts[value] ?: 0
@@ -192,7 +198,7 @@ private fun <T> FilterChipRow(
                 FilterChip(
                     selected = selected == value,
                     onClick = { onSelectedChange(if (selected == value) null else value) },
-                    label = { Text("$label ($count)") },
+                    label = { Text(stringResource(R.string.filter_option_count, label, count)) },
                 )
             }
         }
@@ -217,13 +223,13 @@ private fun RecoverableFileRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = file.name, style = MaterialTheme.typography.bodyLarge)
                 Spacer(modifier = Modifier.height(4.dp))
+                val partialSuffix = if (file.reliability == ReliabilityLevel.PARTIAL) {
+                    " · " + stringResource(R.string.reliability_partial)
+                } else {
+                    ""
+                }
                 Text(
-                    text = buildString {
-                        append(file.category.label())
-                        append(" · ")
-                        append(formatSize(file.sizeBytes))
-                        if (file.reliability == ReliabilityLevel.PARTIAL) append(" · Partiel")
-                    },
+                    text = "${file.category.label()} · ${formatSize(file.sizeBytes)}$partialSuffix",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -282,12 +288,12 @@ private fun Thumbnail(file: RecoverableFile) {
 private fun RecoveryStatusLabel(status: RecoveryStatus?) {
     when (status) {
         is RecoveryStatus.Success -> Text(
-            text = "Enregistré : ${status.savedPath}",
+            text = stringResource(R.string.recovery_saved, status.savedPath),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary,
         )
         is RecoveryStatus.Error -> Text(
-            text = "Échec : ${status.message}",
+            text = stringResource(R.string.recovery_failed, status.message),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,
         )
@@ -304,29 +310,37 @@ private fun RecoveryAction(status: RecoveryStatus?, onRecover: () -> Unit) {
         )
         is RecoveryStatus.Success -> Icon(
             imageVector = Icons.Filled.CheckCircle,
-            contentDescription = "Récupéré",
+            contentDescription = stringResource(R.string.recovery_recovered_description),
             tint = MaterialTheme.colorScheme.primary,
         )
         is RecoveryStatus.Error -> IconButton(onClick = onRecover) {
-            Icon(imageVector = Icons.Filled.Refresh, contentDescription = "Réessayer")
+            Icon(
+                imageVector = Icons.Filled.Refresh,
+                contentDescription = stringResource(R.string.recovery_retry_description),
+            )
         }
         null -> IconButton(onClick = onRecover) {
-            Icon(imageVector = Icons.Filled.Download, contentDescription = "Récupérer")
+            Icon(
+                imageVector = Icons.Filled.Download,
+                contentDescription = stringResource(R.string.recovery_recover_description),
+            )
         }
     }
 }
 
+@Composable
 private fun FileCategory.label(): String = when (this) {
-    FileCategory.IMAGE -> "Photo"
-    FileCategory.VIDEO -> "Vidéo"
+    FileCategory.IMAGE -> stringResource(R.string.category_photo)
+    FileCategory.VIDEO -> stringResource(R.string.category_video)
 }
 
+@Composable
 private fun formatSize(bytes: Long): String {
     val kb = bytes / 1024.0
     val mb = kb / 1024.0
     return when {
-        mb >= 1 -> "%.1f Mo".format(mb)
-        kb >= 1 -> "%.0f Ko".format(kb)
-        else -> "$bytes o"
+        mb >= 1 -> stringResource(R.string.size_megabytes, mb)
+        kb >= 1 -> stringResource(R.string.size_kilobytes, kb)
+        else -> stringResource(R.string.size_bytes, bytes)
     }
 }

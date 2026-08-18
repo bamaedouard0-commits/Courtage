@@ -30,4 +30,36 @@
 
     <string name="resume_deep_scan_title">Resume deep scan</string>
     <string name="resume_deep_scan_desc">Interrupted at %1$d%% — %2$d file(s) already found</string>
+
+    <string name="scan_progress_title">Searching…</string>
+    <string name="scan_progress_failed">Scan failed: %1$s</string>
+    <string name="scan_progress_found_count">%1$d file(s) found</string>
+    <string name="scan_progress_percent">%1$d%%</string>
+
+    <string name="results_count">%1$d recoverable file(s)</string>
+    <string name="results_count_filtered">%1$d / %2$d recoverable file(s)</string>
+    <string name="results_empty_quick">No files found by the quick scan. Try the deep scan.</string>
+    <string name="results_empty_filtered">No results match these filters.</string>
+    <string name="results_new_scan">New scan</string>
+
+    <string name="filter_all_count">All (%1$d)</string>
+    <string name="filter_option_count">%1$s (%2$d)</string>
+    <string name="filter_photos">Photos</string>
+    <string name="filter_videos">Videos</string>
+    <string name="filter_intact">Intact</string>
+    <string name="filter_partial">Partial</string>
+
+    <string name="category_photo">Photo</string>
+    <string name="category_video">Video</string>
+    <string name="reliability_partial">Partial</string>
+
+    <string name="recovery_saved">Saved: %1$s</string>
+    <string name="recovery_failed">Failed: %1$s</string>
+    <string name="recovery_recovered_description">Recovered</string>
+    <string name="recovery_retry_description">Retry</string>
+    <string name="recovery_recover_description">Recover</string>
+
+    <string name="size_megabytes">%1$.1f MB</string>
+    <string name="size_kilobytes">%1$.0f KB</string>
+    <string name="size_bytes">%1$d B</string>
 </resources>

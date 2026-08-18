@@ -16,6 +16,10 @@ low-level block-device scanning impossible without root.
 Code comments and commit messages in this repo are written in **French**; identifiers (classes,
 functions, variables) are in English. Follow this convention when editing existing files.
 
+All UI text goes through `stringResource`/`values/strings.xml` (French, the default locale) with
+an English translation in `values-en/strings.xml` — every screen follows this now. Add both when
+introducing new user-facing text; don't hardcode strings in Composables.
+
 ## Build, lint, and run
 
 This is a standard single-module Gradle/Android project (Kotlin + Jetpack Compose). There is no
@@ -175,10 +179,6 @@ stay in sync.
   killing the app and resuming later (see F9 above) interrupts one.
 - No cap/pruning on scan history — every scan is kept forever; a heavy user could grow
   `filerescue.db` unbounded.
-- `ScanResultsScreen.kt` / `ScanProgressScreen.kt` have hardcoded French UI strings, unlike
-  `HomeScreen.kt`/`NoRootScreen.kt`/`ScanHistoryScreen.kt` which use `stringResource`
-  (`values/strings.xml` + `values-en/strings.xml`) — inconsistent localization, worth fixing if
-  touching those two screens.
 
 ## Known V1 limitations (see README.md for current status)
 

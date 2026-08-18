@@ -16,8 +16,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.ouagadousoft.filerescuelibre.R
 import com.ouagadousoft.filerescuelibre.viewmodel.ScanUiState
 import com.ouagadousoft.filerescuelibre.viewmodel.ScanViewModel
 
@@ -44,7 +46,7 @@ fun ScanProgressScreen(
         when (val state = uiState) {
             is ScanUiState.Error -> {
                 Text(
-                    text = "Le scan a échoué : ${state.message}",
+                    text = stringResource(R.string.scan_progress_failed, state.message),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                 )
@@ -58,16 +60,16 @@ fun ScanProgressScreen(
                     CircularProgressIndicator()
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Recherche en cours…", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.scan_progress_title), style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "${scanning?.foundCount ?: 0} fichier(s) trouvé(s)",
+                    text = stringResource(R.string.scan_progress_found_count, scanning?.foundCount ?: 0),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 if (fraction != null) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${(fraction * 100).toInt()} %",
+                        text = stringResource(R.string.scan_progress_percent, (fraction * 100).toInt()),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
