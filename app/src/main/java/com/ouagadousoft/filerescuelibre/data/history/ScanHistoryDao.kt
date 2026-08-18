@@ -30,6 +30,15 @@ interface ScanHistoryDao {
     @Query("DELETE FROM scan_sessions WHERE id = :sessionId")
     suspend fun deleteSession(sessionId: Long)
 
+    /** Supprime les scans au-delà des [limit] plus récents (les fichiers liés suivent en cascade). */
+    @Query(
+        """
+        DELETE FROM scan_sessions WHERE id NOT IN
+        (SELECT id FROM scan_sessions ORDER BY timestampEpochSeconds DESC LIMIT :limit)
+        """
+    )
+    suspend fun pruneSessions(limit: Int)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertDeepScanProgress(progress: DeepScanProgressEntity)
 

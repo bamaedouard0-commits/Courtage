@@ -12,6 +12,9 @@ import com.ouagadousoft.filerescuelibre.domain.repository.ScanHistoryRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
+/** Au-delà de ce nombre de scans conservés, les plus anciens (et leurs fichiers) sont purgés. */
+private const val MAX_HISTORY_SESSIONS = 20
+
 class ScanHistoryRepositoryImpl(private val dao: ScanHistoryDao) : ScanHistoryRepository {
 
     override suspend fun saveScan(type: ScanType, zone: ScanZone?, results: List<RecoverableFile>) {
@@ -26,6 +29,7 @@ class ScanHistoryRepositoryImpl(private val dao: ScanHistoryDao) : ScanHistoryRe
         if (results.isNotEmpty()) {
             dao.insertFiles(results.map { it.toEntity(sessionId) })
         }
+        dao.pruneSessions(MAX_HISTORY_SESSIONS)
     }
 
     override fun observeHistory(): Flow<List<ScanHistoryEntry>> =
@@ -66,6 +70,8 @@ class ScanHistoryRepositoryImpl(private val dao: ScanHistoryDao) : ScanHistoryRe
                 totalBytes = totalBytes,
             )
         )
+        // La session tout juste créée est forcément la plus récente : jamais purgée elle-même.
+        dao.pruneSessions(MAX_HISTORY_SESSIONS)
         return sessionId
     }
 

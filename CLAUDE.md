@@ -133,16 +133,23 @@ scan_results`):
 - **Scan history** — `data/history/` (Room: `AppDatabase`, `ScanHistoryDao`,
   `ScanSessionEntity` + `RecoveredFileEntity`, one-to-many via `sessionId` with cascade delete).
   Every completed quick/deep scan is persisted automatically at the end of
-  `ScanViewModel.startQuickScan`/`startDeepScan` (`scanHistoryRepository.saveScan(...)`) — every
-  scan is saved unconditionally, there's no cap or pruning of old sessions in V1. `HomeScreen` has
-  a "Historique des scans" entry point (`ui/FileRescueNavHost.kt`'s `history` route) listing past
-  sessions via `ScanHistoryViewModel`; tapping one calls `ScanViewModel.loadHistoryEntry`, which
-  reloads that session's saved `RecoverableFile` rows straight into `ScanUiState.Completed` —
-  reusing `ScanResultsScreen` as-is, including recovery and thumbnails, instead of a separate
-  read-only view. Recovery/thumbnails on a historical entry re-read from `RecoverableFile.path` at
-  the time of loading, so a quick-scan trash hit whose file has since been purged by the OS will
-  simply fail to recover/decode (handled the same way as any other missing file) rather than
-  crash.
+  `ScanViewModel.startQuickScan`/`startDeepScan` (`scanHistoryRepository.saveScan(...)`).
+  `HomeScreen` has a "Historique des scans" entry point (`ui/FileRescueNavHost.kt`'s `history`
+  route) listing past sessions via `ScanHistoryViewModel`; tapping one calls
+  `ScanViewModel.loadHistoryEntry`, which reloads that session's saved `RecoverableFile` rows
+  straight into `ScanUiState.Completed` — reusing `ScanResultsScreen` as-is, including recovery
+  and thumbnails, instead of a separate read-only view. Recovery/thumbnails on a historical entry
+  re-read from `RecoverableFile.path` at the time of loading, so a quick-scan trash hit whose file
+  has since been purged by the OS will simply fail to recover/decode (handled the same way as any
+  other missing file) rather than crash.
+  History is capped at `MAX_HISTORY_SESSIONS` (20, in `ScanHistoryRepositoryImpl`):
+  `ScanHistoryDao.pruneSessions` deletes sessions beyond the 20 most recent (by timestamp),
+  relying on the same cascade-delete foreign key `deleteScan` already used to clean up their
+  `RecoveredFileEntity` rows — called after `saveScan` and after `beginDeepScanSession`, the only
+  two places a session gets inserted, so the count is only ever checked right after it could grow.
+  The just-inserted session is always the most recent by construction, so pruning can never delete
+  the deep scan currently in progress. Pruning removes the DB rows only — the underlying carved
+  files in `filesDir/carved` from a pruned session are **not** deleted, a known gap (see below).
 - **Deep scan pause/resume (F9)** — persisted across app kills *and* a manual pause button.
   `data/history/DeepScanProgressEntity` is a singleton row (`id = 0`) written at
   `ScanHistoryRepositoryImpl.beginDeepScanSession` (device path + total size), updated via
@@ -183,8 +190,9 @@ stay in sync.
 
 ## Not yet implemented (as of this doc)
 
-- No cap/pruning on scan history — every scan is kept forever; a heavy user could grow
-  `filerescue.db` unbounded.
+- Pruned/deleted scan history rows don't clean up their carved files on disk
+  (`filesDir/carved/*`) — only the Room rows are removed, so private storage can still grow
+  unbounded even though the DB itself is now capped.
 
 ## Known V1 limitations (see README.md for current status)
 
